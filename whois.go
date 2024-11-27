@@ -38,7 +38,7 @@ const (
 	// defaultWhoisPort is default whois port
 	defaultWhoisPort = "43"
 	// defaultTimeout is query default timeout
-	defaultTimeout = 60 * time.Second
+	defaultTimeout = 30 * time.Second
 	// asnPrefix is asn prefix string
 	asnPrefix = "AS"
 	// maxRetries is the maximum number of retry attempts
@@ -207,7 +207,7 @@ func (c *Client) rawQuery(domain, server, port string) (string, error) {
 	if port != defaultWhoisPort {
 		for attempt := 0; attempt < maxRetries; attempt++ {
 			if attempt > 0 {
-				backoff := time.Duration(baseDelay) * time.Duration(1<<uint(attempt))
+				backoff := baseDelay * time.Duration(1<<uint(attempt))
 				jitter := time.Duration(float64(backoff) * (0.5 + rand.Float64()))
 				time.Sleep(jitter)
 			}
@@ -241,7 +241,7 @@ func (c *Client) rawQuery(domain, server, port string) (string, error) {
 	for _, currentServer := range servers {
 		for attempt := 0; attempt < maxRetries; attempt++ {
 			if attempt > 0 {
-				backoff := time.Duration(baseDelay) * time.Duration(1<<uint(attempt))
+				backoff := baseDelay * time.Duration(1<<uint(attempt))
 				jitter := time.Duration(float64(backoff) * (0.5 + rand.Float64()))
 				time.Sleep(jitter)
 			}

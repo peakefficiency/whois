@@ -90,7 +90,7 @@ func TestWhoisTimeout(t *testing.T) {
 }
 
 func TestWhois(t *testing.T) {
-	t.Parallel()
+
 	tests := []string{
 		"com",
 		"xxx",
@@ -133,7 +133,6 @@ func TestWhois(t *testing.T) {
 }
 
 func TestWhoisServerError(t *testing.T) {
-	t.Parallel()
 
 	// Start local TCP server that simulates rate limiting
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
