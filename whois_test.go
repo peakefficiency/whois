@@ -223,6 +223,7 @@ func TestGetServer(t *testing.T) {
 }
 
 func TestEnhancedWhoisQueries(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		query    string
@@ -235,7 +236,6 @@ func TestEnhancedWhoisQueries(t *testing.T) {
 				"NetRange:",              // Network range information
 				"NetName:        GOGL",   // Google's network name
 				"Organization:   Google", // Organization name
-
 			},
 		},
 		{
@@ -280,7 +280,9 @@ func TestEnhancedWhoisQueries(t *testing.T) {
 
 	client := NewClient()
 	for _, tc := range testCases {
+		tc := tc // capture range variable
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel() // Run subtests in parallel
 			result, err := client.Whois(tc.query)
 			if err != nil {
 				t.Errorf("Failed to query %s: %v", tc.query, err)
