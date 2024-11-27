@@ -221,3 +221,79 @@ func TestGetServer(t *testing.T) {
 		assert.Equal(t, port, tc.port)
 	}
 }
+
+func TestEnhancedWhoisQueries(t *testing.T) {
+	testCases := []struct {
+		name     string
+		query    string
+		contains []string // Strings that should be present in the result
+	}{
+		{
+			name:  "Google DNS IP (ARIN)",
+			query: "8.8.8.8",
+			contains: []string{
+				"NetRange:",              // Network range information
+				"NetName:        GOGL",   // Google's network name
+				"Organization:   Google", // Organization name
+
+			},
+		},
+		{
+			name:  "Cloudflare IP (ARIN)",
+			query: "1.1.1.1",
+			contains: []string{
+				"netname:        APNIC-LABS", // Network name (APNIC format)
+				"AS13335/Cloudflare",         // Cloudflare's ASN
+				"route:",                     // RADB route information
+				"13335",                      // Cloudflare's ASN from Team Cymru
+			},
+		},
+		{
+			name:  "RIPE IP Address",
+			query: "193.0.6.139",
+			contains: []string{
+				"netname:", // RIPE netname format
+				"RIPE-NCC", // Organization
+				"route:",   // RADB route information
+				"3333",     // RIPE NCC's ASN
+			},
+		},
+		{
+			name:  "APNIC IP Address",
+			query: "203.119.101.61",
+			contains: []string{
+				"netname:", // APNIC netname format
+				"APNIC",    // Organization
+				"route:",   // RADB route information
+			},
+		},
+		{
+			name:  "ASN Query",
+			query: "AS15169",
+			contains: []string{
+				"ASNumber:       15169",      // ASN number
+				"ASName:         GOOGLE",     // ASN name
+				"OrgName:        Google LLC", // Organization name
+			},
+		},
+	}
+
+	client := NewClient()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := client.Whois(tc.query)
+			if err != nil {
+				t.Errorf("Failed to query %s: %v", tc.query, err)
+				return
+			}
+
+			// Check if all expected strings are present in the result
+			for _, expected := range tc.contains {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected result to contain %q for query %s, but it didn't.\nGot result:\n%s",
+						expected, tc.query, result)
+				}
+			}
+		})
+	}
+}

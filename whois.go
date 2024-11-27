@@ -192,10 +192,19 @@ func (c *Client) rawQuery(domain, server, port string) (string, error) {
 
 	if server == "whois.arin.net" {
 		if IsASN(domain) {
-			domain = "a + " + domain
-		} else {
+			domain = "a " + domain
+		} else if net.ParseIP(domain) != nil {
+			// For ARIN IP queries, we need to use their specific format
 			domain = "n + " + domain
+		} else {
+			domain = "n " + domain
 		}
+	} else if server == "whois.ripe.net" || server == "whois.apnic.net" {
+		// Add flags for more verbose output for RIPE and APNIC
+		if net.ParseIP(domain) != nil || IsASN(domain) {
+			domain = "-B " + domain
+		}
+
 	}
 
 	// See: https://github.com/likexian/whois/issues/17
