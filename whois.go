@@ -22,6 +22,7 @@ package whois
 import (
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"regexp"
 	"strconv"
@@ -37,10 +38,21 @@ const (
 	// defaultWhoisPort is default whois port
 	defaultWhoisPort = "43"
 	// defaultTimeout is query default timeout
-	defaultTimeout = 30 * time.Second
+	defaultTimeout = 60 * time.Second
 	// asnPrefix is asn prefix string
 	asnPrefix = "AS"
+	// maxRetries is the maximum number of retry attempts
+	maxRetries = 3
+	// baseDelay is the base delay for exponential backoff
+	baseDelay = 1 * time.Second
 )
+
+// fallbackServers contains alternative servers for different TLDs
+var fallbackServers = map[string][]string{
+	"com": {"whois.verisign-grs.com", "whois.iana.org"},
+	"net": {"whois.verisign-grs.com", "whois.iana.org"},
+	"org": {"whois.pir.org", "whois.iana.org"},
+}
 
 // DefaultClient is default whois client
 var DefaultClient = NewClient()
@@ -188,6 +200,70 @@ func (c *Client) Whois(domain string, servers ...string) (result string, err err
 
 // rawQuery do raw query to the server
 func (c *Client) rawQuery(domain, server, port string) (string, error) {
+	var lastErr error
+	var result string
+
+	// For rwhois servers, don't use fallbacks as they use custom ports
+	if port != defaultWhoisPort {
+		for attempt := 0; attempt < maxRetries; attempt++ {
+			if attempt > 0 {
+				backoff := time.Duration(baseDelay) * time.Duration(1<<uint(attempt))
+				jitter := time.Duration(float64(backoff) * (0.5 + rand.Float64()))
+				time.Sleep(jitter)
+			}
+
+			result, lastErr = c.doRawQuery(domain, server, port)
+			if lastErr == nil {
+				return result, nil
+			}
+
+			// Only retry on connection-related errors
+			if !strings.Contains(lastErr.Error(), "connect:") &&
+				!strings.Contains(lastErr.Error(), "i/o timeout") &&
+				!strings.Contains(lastErr.Error(), "connection refused") {
+				break
+			}
+		}
+		return "", fmt.Errorf("whois: all retry attempts failed for %s:%s, last error: %w", server, port, lastErr)
+	}
+
+	// Standard whois servers with default port
+	ext := getExtension(domain)
+	servers := []string{server}
+	if fallbacks, ok := fallbackServers[ext]; ok {
+		for _, s := range fallbacks {
+			if s != server {
+				servers = append(servers, s)
+			}
+		}
+	}
+
+	for _, currentServer := range servers {
+		for attempt := 0; attempt < maxRetries; attempt++ {
+			if attempt > 0 {
+				backoff := time.Duration(baseDelay) * time.Duration(1<<uint(attempt))
+				jitter := time.Duration(float64(backoff) * (0.5 + rand.Float64()))
+				time.Sleep(jitter)
+			}
+
+			result, lastErr = c.doRawQuery(domain, currentServer, defaultWhoisPort)
+			if lastErr == nil {
+				return result, nil
+			}
+
+			if !strings.Contains(lastErr.Error(), "connect:") &&
+				!strings.Contains(lastErr.Error(), "i/o timeout") &&
+				!strings.Contains(lastErr.Error(), "connection refused") {
+				break
+			}
+		}
+	}
+
+	return "", fmt.Errorf("whois: all servers and retry attempts failed, last error: %w", lastErr)
+}
+
+// doRawQuery performs the actual query to the whois server
+func (c *Client) doRawQuery(domain, server, port string) (string, error) {
 	start := time.Now()
 
 	if server == "whois.arin.net" {
@@ -237,7 +313,6 @@ func (c *Client) rawQuery(domain, server, port string) (string, error) {
 		if len(buffer) > 0 {
 			return string(buffer), err
 		}
-
 		return "", fmt.Errorf("whois: send to whois server failed: %w", err)
 	}
 
@@ -255,7 +330,6 @@ func (c *Client) rawQuery(domain, server, port string) (string, error) {
 			// catch rate limit errors.
 			return string(buffer), err
 		}
-
 		return "", fmt.Errorf("whois: read from whois server failed: %w", err)
 	}
 

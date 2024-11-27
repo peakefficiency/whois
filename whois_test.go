@@ -32,12 +32,14 @@ import (
 )
 
 func TestVersion(t *testing.T) {
+	t.Parallel()
 	assert.Contains(t, Version(), ".")
 	assert.Contains(t, Author(), "likexian")
 	assert.Contains(t, License(), "Apache License")
 }
 
 func TestClient_SetDisableReferral(t *testing.T) {
+	t.Parallel()
 	client := NewClient()
 
 	resp, err := client.Whois("likexian.com")
@@ -52,6 +54,7 @@ func TestClient_SetDisableReferral(t *testing.T) {
 }
 
 func TestWhoisFail(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		domain string
 		err    error
@@ -74,6 +77,7 @@ func TestWhoisFail(t *testing.T) {
 }
 
 func TestWhoisTimeout(t *testing.T) {
+	t.Parallel()
 	client := NewClient()
 	client.SetTimeout(1 * time.Millisecond)
 	_, err := client.Whois("google.com")
@@ -86,6 +90,7 @@ func TestWhoisTimeout(t *testing.T) {
 }
 
 func TestWhois(t *testing.T) {
+	t.Parallel()
 	tests := []string{
 		"com",
 		"xxx",
@@ -128,6 +133,8 @@ func TestWhois(t *testing.T) {
 }
 
 func TestWhoisServerError(t *testing.T) {
+	t.Parallel()
+
 	// Start local TCP server that simulates rate limiting
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	assert.Nil(t, err)
@@ -154,6 +161,7 @@ func TestWhoisServerError(t *testing.T) {
 }
 
 func TestNewClient(t *testing.T) {
+	t.Parallel()
 	c := NewClient()
 	var err error
 
@@ -172,6 +180,7 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestIsASN(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  string
 		out bool
@@ -196,6 +205,7 @@ func TestIsASN(t *testing.T) {
 }
 
 func TestGetServer(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		filename string
 		server   string
@@ -282,7 +292,6 @@ func TestEnhancedWhoisQueries(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc // capture range variable
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel() // Run subtests in parallel
 			result, err := client.Whois(tc.query)
 			if err != nil {
 				t.Errorf("Failed to query %s: %v", tc.query, err)
